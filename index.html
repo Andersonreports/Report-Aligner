@@ -4,215 +4,332 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AND-Bioinfo Report Aligner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,900;1,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root { color-scheme: light; }
-  * { box-sizing: border-box; }
-  html, body {
-    height: 100%;
-    margin: 0;
+  /* ---------- Design tokens ---------- */
+  :root {
+    color-scheme: light;
+    --ink: #161b22;
+    --ink-soft: #565f6d;
+    --paper: #f1f3f6;
+    --surface: #ffffff;
+    --line: #dee2e8;
+    --line-strong: #c7ccd4;
+    --guide-magenta: #c81e62;
+    --guide-magenta-soft: #f6dbe6;
+    --guide-cyan: #0e7490;
+    --guide-cyan-soft: #d9eef2;
+    --success: #2f8f5b;
+    --success-soft: #dcefe3;
+    --danger: #b3382c;
+    --danger-soft: #f5dfdb;
+    --font-display: "Fraunces", Georgia, serif;
+    --font-body: "IBM Plex Sans", -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
   }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e7e9ed;
+      --ink-soft: #a3aab6;
+      --paper: #14171c;
+      --surface: #1b1f26;
+      --line: #2b303a;
+      --line-strong: #3a4049;
+      --guide-magenta: #f0568f;
+      --guide-magenta-soft: #3a2030;
+      --guide-cyan: #22b8d8;
+      --guide-cyan-soft: #16323a;
+      --success: #4cbe85;
+      --success-soft: #17362a;
+      --danger: #e0776a;
+      --danger-soft: #3a2320;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
   body {
-    font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    color: #23272f;
-    background: #f5f6f8;
+    font-family: var(--font-body);
+    color: var(--ink);
+    background: var(--paper);
     display: flex;
     flex-direction: column;
   }
+  ::selection { background: var(--guide-magenta-soft); color: var(--ink); }
+  a { color: var(--guide-cyan); }
+  :focus-visible { outline: 2px solid var(--guide-magenta); outline-offset: 2px; }
 
+  /* ---------- Header ---------- */
   header {
-    padding: 1.1rem 1.5rem 1rem;
-    border-bottom: 1px solid #e1e4e9;
-    background: #ffffff;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 1.4rem 1.5rem 0;
     text-align: center;
   }
-  h1 {
-    display: inline-block;
-    font-size: 1.25rem;
-    margin: 0;
-    color: #123a5e;
-    font-weight: 800;
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    letter-spacing: 0.07em;
-    padding: 0.4rem 1rem;
-    background: linear-gradient(90deg, #dfeaf5, #eef3f8);
-    border-left: 4px solid #3b6ea5;
-    border-radius: 4px;
+    color: var(--guide-cyan);
+    margin: 0 0 0.4rem;
   }
-  select, input[type=file] {
-    font-family: inherit;
-    font-size: 0.9rem;
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-style: italic;
+    font-size: 1.9rem;
+    letter-spacing: 0.01em;
+    margin: 0 0 1rem;
+    color: var(--ink);
+    text-wrap: balance;
   }
-  select {
-    padding: 0.4rem 0.6rem;
-    border-radius: 6px;
-    border: 1px solid #cdd3da;
-    background: #fff;
-    color: #23272f;
-    width: 100%;
+  .ruler {
+    height: 7px;
+    background-image: repeating-linear-gradient(to right, var(--line-strong) 0 1px, transparent 1px 10px);
+    background-position: center;
   }
-  #template-status { font-size: 0.85rem; margin-top: 0.5rem; }
 
+  /* ---------- Layout ---------- */
   .layout {
     flex: 1;
     display: grid;
-    grid-template-columns: 1fr 3fr;
+    grid-template-columns: minmax(260px, 1fr) 3fr;
     gap: 1.25rem;
-    padding: 1.25rem 1.5rem;
+    padding: 1.5rem;
     min-height: 0;
   }
   @media (max-width: 800px) {
     .layout { grid-template-columns: 1fr; }
   }
+  .sidebar { min-width: 0; display: flex; flex-direction: column; gap: 1.25rem; }
 
-  .sidebar { min-width: 0; }
   .card {
-    background: #ffffff;
-    border: 1px solid #dfe3e8;
-    border-radius: 10px;
-    padding: 1.25rem 1.4rem;
-    margin-bottom: 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 1.3rem 1.4rem;
   }
-  .card h2 { font-size: 1rem; margin: 0 0 0.9rem; color: #2f333b; font-weight: 600; }
-  label.field { display: block; margin: 0 0 0.9rem; font-size: 0.9rem; color: #4b505a; }
-  input[type=file] { display: block; margin-top: 0.4rem; width: 100%; }
+  .card-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 0.3rem;
+  }
+  .card-eyebrow .step-num { color: var(--guide-magenta); font-weight: 500; }
+  .card h2 {
+    font-family: var(--font-body);
+    font-size: 1.02rem;
+    font-weight: 600;
+    margin: 0 0 1rem;
+    color: var(--ink);
+  }
 
+  label.field { display: block; margin: 0 0 0.9rem; font-size: 0.9rem; color: var(--ink-soft); }
+  select, input[type=file] { font-family: inherit; font-size: 0.9rem; }
+  select {
+    padding: 0.5rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    color: var(--ink);
+    width: 100%;
+  }
+  select:disabled { color: var(--ink-soft); background: var(--paper); }
+
+  /* ---------- Dropzone (crop-mark corners) ---------- */
   .dropzone {
     position: relative;
-    border: 2px dashed #cdd3da;
-    border-radius: 10px;
-    padding: 1.75rem 1rem;
+    padding: 1.9rem 1rem;
     text-align: center;
-    background: #fafbfc;
     margin-bottom: 1rem;
-    transition: border-color .15s ease, background .15s ease;
+    background-repeat: no-repeat;
+    background-size: 18px 18px;
+    background-position: top 6px left 6px, top 6px left 6px,
+                          top 6px right 6px, top 6px right 6px,
+                          bottom 6px right 6px, bottom 6px right 6px,
+                          bottom 6px left 6px, bottom 6px left 6px;
+    background-image:
+      linear-gradient(to right, var(--line-strong) 2px, transparent 2px),
+      linear-gradient(to bottom, var(--line-strong) 2px, transparent 2px),
+      linear-gradient(to left, var(--line-strong) 2px, transparent 2px),
+      linear-gradient(to bottom, var(--line-strong) 2px, transparent 2px),
+      linear-gradient(to left, var(--line-strong) 2px, transparent 2px),
+      linear-gradient(to top, var(--line-strong) 2px, transparent 2px),
+      linear-gradient(to right, var(--line-strong) 2px, transparent 2px),
+      linear-gradient(to top, var(--line-strong) 2px, transparent 2px);
+    transition: background-image .15s ease;
   }
   .dropzone:hover, .dropzone.dragover {
-    border-color: #3b6ea5;
-    background: #eef3f8;
+    background-image:
+      linear-gradient(to right, var(--guide-magenta) 2px, transparent 2px),
+      linear-gradient(to bottom, var(--guide-magenta) 2px, transparent 2px),
+      linear-gradient(to left, var(--guide-magenta) 2px, transparent 2px),
+      linear-gradient(to bottom, var(--guide-magenta) 2px, transparent 2px),
+      linear-gradient(to left, var(--guide-magenta) 2px, transparent 2px),
+      linear-gradient(to top, var(--guide-magenta) 2px, transparent 2px),
+      linear-gradient(to right, var(--guide-magenta) 2px, transparent 2px),
+      linear-gradient(to top, var(--guide-magenta) 2px, transparent 2px);
   }
+  .dropzone.dragover { background-color: var(--guide-magenta-soft); }
   .dropzone-input {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0;
-    cursor: pointer;
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    opacity: 0; cursor: pointer;
   }
   .dropzone-content { pointer-events: none; }
-  .dropzone-content svg { width: 30px; height: 30px; color: #7d8792; margin-bottom: 0.5rem; }
-  .dropzone-text { margin: 0; font-size: 0.9rem; color: #4b505a; line-height: 1.4; }
-  .dropzone-browse { color: #3b6ea5; text-decoration: underline; }
+  .dropzone-content svg { width: 26px; height: 26px; color: var(--ink-soft); margin-bottom: 0.5rem; }
+  .dropzone-text { margin: 0; font-size: 0.88rem; color: var(--ink-soft); line-height: 1.45; }
+  .dropzone-browse { color: var(--guide-cyan); text-decoration: underline; }
   .dropzone-filename {
     margin: 0.6rem 0 0;
-    font-size: 0.85rem;
-    color: #2f333b;
-    font-weight: 600;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--ink);
+    font-weight: 500;
     word-break: break-all;
   }
 
+  /* ---------- Buttons ---------- */
   button {
-    background: #3b6ea5;
+    font-family: var(--font-body);
+    background: var(--guide-magenta);
     color: #ffffff;
     border: none;
     padding: 0.55rem 1.1rem;
     border-radius: 6px;
     font-size: 0.9rem;
+    font-weight: 500;
     cursor: pointer;
+    transition: background .12s ease;
   }
-  button:hover:not(:disabled) { background: #325f8e; }
-  button:disabled { background: #c7ccd3; cursor: not-allowed; }
+  button:hover:not(:disabled) { background: #a8194f; }
+  button:disabled { background: var(--line-strong); color: var(--ink-soft); cursor: not-allowed; }
   .fix-btn {
-    display: block;
-    width: 100%;
-    margin-top: 1rem;
-    padding: 0.8rem 1.1rem;
-    font-size: 1rem;
-    font-weight: 600;
+    display: block; width: 100%; margin-top: 1rem;
+    padding: 0.85rem 1.1rem; font-size: 1rem; font-weight: 600;
   }
 
-  .status { margin-top: 0.6rem; font-size: 0.85rem; }
-  .status.ok { color: #2f9e64; }
-  .status.error { color: #d1495b; }
+  /* ---------- Status chips ---------- */
+  .status { margin-top: 0.7rem; min-height: 1.4rem; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    background: var(--paper);
+    color: var(--ink-soft);
+  }
+  .chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--ink-soft); flex: none; }
+  .chip.ok { background: var(--success-soft); color: var(--success); }
+  .chip.ok::before { background: var(--success); }
+  .chip.error { background: var(--danger-soft); color: var(--danger); }
+  .chip.error::before { background: var(--danger); }
   .hidden { display: none !important; }
 
   a.download {
-    display: block;
-    text-align: center;
-    margin-top: 0.75rem;
-    background: #3b6ea5;
+    display: block; text-align: center;
+    margin-top: 0.85rem;
+    background: var(--guide-cyan);
     color: #ffffff;
-    padding: 0.5rem 1rem;
+    padding: 0.6rem 1rem;
     border-radius: 6px;
     text-decoration: none;
     font-size: 0.9rem;
+    font-weight: 500;
   }
-  a.download:hover { background: #325f8e; }
-  .checkbox-row { font-size: 0.82rem; color: #6b7078; display: flex; gap: 0.4rem; align-items: flex-start; }
+  a.download:hover { background: #0a5b71; }
 
-  .preview-pane {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    min-height: 0;
+  .checkbox-row {
+    font-size: 0.82rem; color: var(--ink-soft);
+    display: flex; gap: 0.5rem; align-items: flex-start;
   }
-  .preview-toolbar {
-    display: flex;
-    gap: 0.5rem;
-    margin-bottom: 0.75rem;
-  }
+  .checkbox-row input { margin-top: 0.15rem; accent-color: var(--guide-magenta); }
+
+  /* ---------- Preview pane ---------- */
+  .preview-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .preview-toolbar { display: flex; gap: 0; margin-bottom: 0.85rem; width: fit-content; }
   .toggle-btn {
-    background: #ffffff;
-    color: #4b505a;
-    border: 1px solid #cdd3da;
+    background: var(--surface);
+    color: var(--ink-soft);
+    border: 1px solid var(--line-strong);
+    font-weight: 500;
+    border-radius: 0;
   }
-  .toggle-btn.active {
-    background: #3b6ea5;
-    color: #fff;
-    border-color: #3b6ea5;
-  }
-  .toggle-btn:disabled { background: #eef0f3; color: #a7adb6; border-color: #dfe3e8; }
+  .toggle-btn:first-child { border-radius: 6px 0 0 6px; }
+  .toggle-btn:last-child { border-radius: 0 6px 6px 0; border-left: none; }
+  .toggle-btn.active { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  #preview-fixed-btn.active { background: var(--guide-magenta); border-color: var(--guide-magenta); }
+  .toggle-btn:disabled { background: var(--paper); color: var(--line-strong); border-color: var(--line); }
 
   .preview-container {
     flex: 1;
     min-height: 0;
     overflow: auto;
-    background: #e9ebee;
-    border: 1px solid #dfe3e8;
-    border-radius: 10px;
-    padding: 1.5rem;
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(to right, var(--line) 1px, transparent 1px);
+    background-size: 28px 28px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 1.75rem;
   }
   .preview-placeholder {
-    color: #9aa0a8;
+    font-family: var(--font-mono);
+    color: var(--ink-soft);
     text-align: center;
     margin-top: 3rem;
-    font-size: 0.95rem;
+    font-size: 0.88rem;
   }
   .docx-wrapper { background: transparent; }
   .docx-wrapper > section.docx {
     margin-bottom: 1.5rem !important;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
   }
 
-  footer { font-size: 0.78rem; color: #9aa0a8; text-align: center; padding: 0.75rem; }
+  footer {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+    text-align: center;
+    padding: 0.9rem;
+    letter-spacing: 0.02em;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dropzone, button { transition: none; }
+  }
 </style>
 </head>
 <body>
   <header>
+    <p class="eyebrow">Anderson Diagnostics &middot; Clinical Bioinformatics</p>
     <h1>AND-Bioinfo Report Aligner</h1>
+    <div class="ruler"></div>
   </header>
 
   <div class="layout">
     <aside class="sidebar">
       <div class="card">
-        <h2>Template</h2>
+        <p class="card-eyebrow"><span class="step-num">Step 1</span> &middot; Template</p>
+        <h2>Choose a template</h2>
         <label class="field">
           <select id="template-select"></select>
         </label>
-        <div id="template-status" class="status">Loading templates...</div>
+        <div id="template-status" class="status">
+          <span class="chip">Loading templates&hellip;</span>
+        </div>
       </div>
 
       <div class="card">
-        <h2>Report</h2>
+        <p class="card-eyebrow"><span class="step-num">Step 2</span> &middot; Report</p>
+        <h2>Upload a report to fix</h2>
         <div id="dropzone" class="dropzone">
           <input type="file" id="report-input" class="dropzone-input" accept=".docx">
           <div class="dropzone-content">
@@ -242,7 +359,7 @@
     </main>
   </div>
 
-  <footer>Runs entirely client-side. No data leaves your device.</footer>
+  <footer>Runs entirely client-side &middot; no data leaves your device</footer>
 
   <div id="preview-styles" class="hidden"></div>
 

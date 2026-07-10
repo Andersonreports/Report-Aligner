@@ -18,14 +18,24 @@ let currentProfile = null;
 let originalArrayBuffer = null;
 let fixedBlob = null;
 
+function renderChip(el, text, isError) {
+  if (!text) {
+    el.innerHTML = '';
+    return;
+  }
+  const span = document.createElement('span');
+  span.className = 'chip' + (isError ? ' error' : ' ok');
+  span.textContent = text;
+  el.innerHTML = '';
+  el.appendChild(span);
+}
+
 function setTemplateStatus(text, isError) {
-  templateStatus.textContent = text;
-  templateStatus.className = isError ? 'status error' : 'status ok';
+  renderChip(templateStatus, text, isError);
 }
 
 function setReportStatus(text, isError) {
-  reportStatus.textContent = text;
-  reportStatus.className = isError ? 'status error' : 'status ok';
+  renderChip(reportStatus, text, isError);
 }
 
 async function loadTemplateManifest() {
