@@ -5,7 +5,8 @@ reference template — fonts, paragraph alignment, spacing, margins, and heading
 styles. Runs entirely client-side (via [JSZip](https://stuk.github.io/jszip/) and
 direct OOXML manipulation); no report is ever uploaded to a server.
 
-Hosted on GitHub Pages from the `web/` folder (see `.github/workflows/pages.yml`).
+Hosted on GitHub Pages directly from the repo root (Settings → Pages → Source:
+"Deploy from a branch" → `main` / `/ (root)`).
 
 ## How it works
 
@@ -22,7 +23,7 @@ A `.docx` file is a zip of XML parts. The tool:
 4. Because real-world drafts often tag the same heading with inconsistent (or
    no) Word style names, paragraphs are also matched by their **text** against
    a small dictionary of known recurring section headings (see `TITLE_TEXTS` /
-   `HEADING2_TEXTS` in `web/aligner.js`) as a more reliable fallback than style
+   `HEADING2_TEXTS` in `aligner.js`) as a more reliable fallback than style
    names alone. The very first non-empty paragraph in the document is always
    treated as the title.
 
@@ -50,13 +51,13 @@ aren't tagged with any heading style. It's best-effort and off by default.
 By default each person uploads the template once in their own browser. If you
 want everyone to get the correct template automatically with no manual step,
 commit a **de-identified** template (placeholder patient info, not a real
-report) to `web/team-template/template.docx` — the app fetches it on load if
+report) to `team-template/template.docx` — the app fetches it on load if
 present. Do not commit a real patient report here; this repo is public.
 
 ## Local development
 
 ```
-cd web && python -m http.server 8934   # or any static file server
+python -m http.server 8934   # or any static file server, from the repo root
 ```
 
 Then open http://localhost:8934/.

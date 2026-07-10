@@ -8,7 +8,7 @@ global.XMLSerializer = XMLSerializer;
 global.JSZip = JSZip;
 global.window = global;
 
-const alignerSrc = fs.readFileSync(path.join(__dirname, '..', 'web', 'aligner.js'), 'utf8');
+const alignerSrc = fs.readFileSync(path.join(__dirname, '..', 'aligner.js'), 'utf8');
 eval(alignerSrc);
 
 async function main() {
