@@ -5,59 +5,56 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Report Aligner</title>
 <style>
-  :root { color-scheme: light dark; }
+  :root { color-scheme: light; }
   body {
     font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
     max-width: 640px;
     margin: 3rem auto;
     padding: 0 1.25rem;
     line-height: 1.5;
-    color: #1a1a1a;
-    background: #fafafa;
+    color: #3a3a38;
+    background: #faf9f6;
   }
-  @media (prefers-color-scheme: dark) {
-    body { color: #e8e8e8; background: #1a1a1a; }
-    .card { background: #262626 !important; border-color: #3a3a3a !important; }
-    input[type=file] { color: inherit; }
-  }
-  h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
-  p.lede { color: #666; margin-top: 0; }
+  h1 { font-size: 1.5rem; margin-bottom: 0.25rem; color: #2f2f2d; font-weight: 600; }
+  p.lede { color: #85837c; margin-top: 0; }
   .card {
-    background: #fff;
-    border: 1px solid #e0e0e0;
+    background: #ffffff;
+    border: 1px solid #e8e6df;
     border-radius: 10px;
     padding: 1.25rem 1.5rem;
     margin-bottom: 1.25rem;
   }
-  .card h2 { font-size: 1.05rem; margin-top: 0; }
-  label.field { display: block; margin: 0.75rem 0; font-size: 0.95rem; }
+  .card h2 { font-size: 1.05rem; margin-top: 0; color: #4a4a46; font-weight: 600; }
+  label.field { display: block; margin: 0.75rem 0; font-size: 0.95rem; color: #57564f; }
   input[type=file] { display: block; margin-top: 0.4rem; }
   button {
-    background: #2e74b5;
-    color: white;
+    background: #8a9a8e;
+    color: #ffffff;
     border: none;
     padding: 0.55rem 1.1rem;
     border-radius: 6px;
     font-size: 0.95rem;
     cursor: pointer;
   }
-  button:disabled { background: #9bb8cd; cursor: not-allowed; }
+  button:hover:not(:disabled) { background: #7c8d80; }
+  button:disabled { background: #d8d6cd; cursor: not-allowed; }
   .status { margin-top: 0.6rem; font-size: 0.9rem; }
-  .status.ok { color: #2e7d32; }
-  .status.error { color: #c62828; }
+  .status.ok { color: #6b8f76; }
+  .status.error { color: #b56a5c; }
   .hidden { display: none; }
   a.download {
     display: inline-block;
     margin-top: 0.75rem;
-    background: #2e7d32;
-    color: white;
+    background: #8a9a8e;
+    color: #ffffff;
     padding: 0.5rem 1rem;
     border-radius: 6px;
     text-decoration: none;
     font-size: 0.9rem;
   }
-  .checkbox-row { font-size: 0.85rem; color: #555; }
-  footer { font-size: 0.8rem; color: #888; text-align: center; margin-top: 2rem; }
+  a.download:hover { background: #7c8d80; }
+  .checkbox-row { font-size: 0.85rem; color: #71706a; }
+  footer { font-size: 0.8rem; color: #a3a199; text-align: center; margin-top: 2rem; }
 </style>
 </head>
 <body>
