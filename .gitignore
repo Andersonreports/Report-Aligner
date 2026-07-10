@@ -3,3 +3,4 @@ node_modules/
 *.pdf
 dev/*.log
 dev/*_FIXED.docx
+.claude/
