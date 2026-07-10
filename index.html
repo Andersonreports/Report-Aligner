@@ -25,10 +25,17 @@
     background: #ffffff;
   }
   h1 {
-    font-size: 1.35rem;
+    display: inline-block;
+    font-size: 1.25rem;
     margin: 0;
-    color: #14171c;
-    font-weight: 600;
+    color: #123a5e;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    padding: 0.4rem 1rem;
+    background: linear-gradient(90deg, #dfeaf5, #eef3f8);
+    border-left: 4px solid #3b6ea5;
+    border-radius: 4px;
   }
   select, input[type=file] {
     font-family: inherit;
@@ -68,6 +75,40 @@
   label.field { display: block; margin: 0 0 0.9rem; font-size: 0.9rem; color: #4b505a; }
   input[type=file] { display: block; margin-top: 0.4rem; width: 100%; }
 
+  .dropzone {
+    position: relative;
+    border: 2px dashed #cdd3da;
+    border-radius: 10px;
+    padding: 1.75rem 1rem;
+    text-align: center;
+    background: #fafbfc;
+    margin-bottom: 1rem;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .dropzone:hover, .dropzone.dragover {
+    border-color: #3b6ea5;
+    background: #eef3f8;
+  }
+  .dropzone-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .dropzone-content { pointer-events: none; }
+  .dropzone-content svg { width: 30px; height: 30px; color: #7d8792; margin-bottom: 0.5rem; }
+  .dropzone-text { margin: 0; font-size: 0.9rem; color: #4b505a; line-height: 1.4; }
+  .dropzone-browse { color: #3b6ea5; text-decoration: underline; }
+  .dropzone-filename {
+    margin: 0.6rem 0 0;
+    font-size: 0.85rem;
+    color: #2f333b;
+    font-weight: 600;
+    word-break: break-all;
+  }
+
   button {
     background: #3b6ea5;
     color: #ffffff;
@@ -79,6 +120,14 @@
   }
   button:hover:not(:disabled) { background: #325f8e; }
   button:disabled { background: #c7ccd3; cursor: not-allowed; }
+  .fix-btn {
+    display: block;
+    width: 100%;
+    margin-top: 1rem;
+    padding: 0.8rem 1.1rem;
+    font-size: 1rem;
+    font-weight: 600;
+  }
 
   .status { margin-top: 0.6rem; font-size: 0.85rem; }
   .status.ok { color: #2f9e64; }
@@ -163,17 +212,19 @@
 
       <div class="card">
         <h2>Report</h2>
-        <label class="field">
-          Report to fix
-          <input type="file" id="report-input" accept=".docx">
-        </label>
+        <div id="dropzone" class="dropzone">
+          <input type="file" id="report-input" class="dropzone-input" accept=".docx">
+          <div class="dropzone-content">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+            <p class="dropzone-text">Drag &amp; drop your report here<br>or <span class="dropzone-browse">browse files</span></p>
+            <p id="dropzone-filename" class="dropzone-filename hidden"></p>
+          </div>
+        </div>
         <label class="checkbox-row">
           <input type="checkbox" id="heuristic-checkbox">
           <span>Also try to fix headings that weren't tagged with a Word heading style (beta)</span>
         </label>
-        <div style="margin-top: 1rem;">
-          <button id="fix-btn" disabled>Fix Alignment</button>
-        </div>
+        <button id="fix-btn" class="fix-btn" disabled>Fix Alignment</button>
         <div id="report-status" class="status"></div>
         <a id="download-link" class="download hidden" href="#">Download fixed report</a>
       </div>

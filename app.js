@@ -1,6 +1,8 @@
 const templateSelect = document.getElementById('template-select');
 const templateStatus = document.getElementById('template-status');
 
+const dropzone = document.getElementById('dropzone');
+const dropzoneFilename = document.getElementById('dropzone-filename');
 const reportInput = document.getElementById('report-input');
 const fixBtn = document.getElementById('fix-btn');
 const heuristicCheckbox = document.getElementById('heuristic-checkbox');
@@ -131,13 +133,38 @@ reportInput.addEventListener('change', async () => {
   if (!file) {
     previewOriginalBtn.disabled = true;
     previewContainer.innerHTML = '<p class="preview-placeholder">Upload a report to preview it here.</p>';
+    dropzoneFilename.classList.add('hidden');
     return;
   }
+
+  dropzoneFilename.textContent = file.name;
+  dropzoneFilename.classList.remove('hidden');
 
   originalArrayBuffer = await file.arrayBuffer();
   previewOriginalBtn.disabled = false;
   setActiveToggle('original');
   renderPreview(originalArrayBuffer.slice(0));
+});
+
+['dragenter', 'dragover'].forEach(evt => {
+  dropzone.addEventListener(evt, (e) => {
+    e.preventDefault();
+    dropzone.classList.add('dragover');
+  });
+});
+['dragleave', 'dragend'].forEach(evt => {
+  dropzone.addEventListener(evt, (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+  });
+});
+dropzone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropzone.classList.remove('dragover');
+  const files = e.dataTransfer.files;
+  if (!files || !files.length) return;
+  reportInput.files = files;
+  reportInput.dispatchEvent(new Event('change'));
 });
 
 fixBtn.addEventListener('click', async () => {
