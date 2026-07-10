@@ -1,3 +1,5 @@
 {
-  "templates": []
+  "templates": [
+    { "name": "Compound Heterozygous", "file": "compound_heterozygous.docx" }
+  ]
 }

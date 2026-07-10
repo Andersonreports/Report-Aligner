@@ -4,3 +4,7 @@ node_modules/
 dev/*.log
 dev/*_FIXED.docx
 .claude/
+.~lock.*#
+
+# De-identified templates are explicitly force-added; see templates/README.md
+!templates/*.docx
