@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Report Aligner</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    max-width: 640px;
+    margin: 3rem auto;
+    padding: 0 1.25rem;
+    line-height: 1.5;
+    color: #1a1a1a;
+    background: #fafafa;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { color: #e8e8e8; background: #1a1a1a; }
+    .card { background: #262626 !important; border-color: #3a3a3a !important; }
+    input[type=file] { color: inherit; }
+  }
+  h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+  p.lede { color: #666; margin-top: 0; }
+  .card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .card h2 { font-size: 1.05rem; margin-top: 0; }
+  label.field { display: block; margin: 0.75rem 0; font-size: 0.95rem; }
+  input[type=file] { display: block; margin-top: 0.4rem; }
+  button {
+    background: #2e74b5;
+    color: white;
+    border: none;
+    padding: 0.55rem 1.1rem;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+  button:disabled { background: #9bb8cd; cursor: not-allowed; }
+  .status { margin-top: 0.6rem; font-size: 0.9rem; }
+  .status.ok { color: #2e7d32; }
+  .status.error { color: #c62828; }
+  .hidden { display: none; }
+  a.download {
+    display: inline-block;
+    margin-top: 0.75rem;
+    background: #2e7d32;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.9rem;
+  }
+  .checkbox-row { font-size: 0.85rem; color: #555; }
+  footer { font-size: 0.8rem; color: #888; text-align: center; margin-top: 2rem; }
+</style>
+</head>
+<body>
+  <h1>Report Aligner</h1>
+  <p class="lede">Upload a report, get it back matching your team's template formatting. Everything runs in your browser — files are never uploaded anywhere.</p>
+
+  <div class="card">
+    <h2>1. Template</h2>
+    <label class="field">
+      Use a different template (optional — a default may already be loaded below)
+      <input type="file" id="template-input" accept=".docx">
+    </label>
+    <div id="template-status" class="status">Loading...</div>
+  </div>
+
+  <div class="card">
+    <h2>2. Fix a report</h2>
+    <label class="field">
+      Report to fix
+      <input type="file" id="report-input" accept=".docx">
+    </label>
+    <label class="checkbox-row">
+      <input type="checkbox" id="heuristic-checkbox">
+      Also try to fix headings that weren't tagged with a Word heading style (beta)
+    </label>
+    <div style="margin-top: 1rem;">
+      <button id="fix-btn" disabled>Fix Alignment</button>
+    </div>
+    <div id="report-status" class="status"></div>
+    <a id="download-link" class="download hidden" href="#">Download</a>
+  </div>
+
+  <footer>Runs entirely client-side. No data leaves your device.</footer>
+
+  <script src="vendor/jszip.min.js"></script>
+  <script src="aligner.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
