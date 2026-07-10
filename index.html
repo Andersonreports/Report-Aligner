@@ -3,47 +3,98 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Report Aligner</title>
+<title>AND-Bioinfo Report Aligner</title>
 <style>
   :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    margin: 0;
+  }
   body {
     font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    max-width: 640px;
-    margin: 3rem auto;
-    padding: 0 1.25rem;
-    line-height: 1.5;
     color: #3a3a38;
     background: #faf9f6;
+    display: flex;
+    flex-direction: column;
   }
-  h1 { font-size: 1.5rem; margin-bottom: 0.25rem; color: #2f2f2d; font-weight: 600; }
-  p.lede { color: #85837c; margin-top: 0; }
+
+  header {
+    padding: 1.1rem 1.5rem 1rem;
+    border-bottom: 1px solid #e8e6df;
+    background: #ffffff;
+  }
+  h1 {
+    font-size: 1.35rem;
+    margin: 0 0 0.7rem;
+    color: #2f2f2d;
+    font-weight: 600;
+  }
+  .template-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .template-row label { font-size: 0.85rem; color: #71706a; }
+  select, input[type=file] {
+    font-family: inherit;
+    font-size: 0.9rem;
+  }
+  select {
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid #d8d6cd;
+    background: #fff;
+    color: #3a3a38;
+    min-width: 260px;
+  }
+  #template-status { font-size: 0.85rem; margin-top: 0.4rem; }
+
+  .layout {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 3fr;
+    gap: 1.25rem;
+    padding: 1.25rem 1.5rem;
+    min-height: 0;
+  }
+  @media (max-width: 800px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .sidebar { min-width: 0; }
   .card {
     background: #ffffff;
     border: 1px solid #e8e6df;
     border-radius: 10px;
-    padding: 1.25rem 1.5rem;
+    padding: 1.25rem 1.4rem;
     margin-bottom: 1.25rem;
   }
-  .card h2 { font-size: 1.05rem; margin-top: 0; color: #4a4a46; font-weight: 600; }
-  label.field { display: block; margin: 0.75rem 0; font-size: 0.95rem; color: #57564f; }
-  input[type=file] { display: block; margin-top: 0.4rem; }
+  .card h2 { font-size: 1rem; margin: 0 0 0.9rem; color: #4a4a46; font-weight: 600; }
+  label.field { display: block; margin: 0 0 0.9rem; font-size: 0.9rem; color: #57564f; }
+  input[type=file] { display: block; margin-top: 0.4rem; width: 100%; }
+
   button {
     background: #8a9a8e;
     color: #ffffff;
     border: none;
     padding: 0.55rem 1.1rem;
     border-radius: 6px;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     cursor: pointer;
   }
   button:hover:not(:disabled) { background: #7c8d80; }
   button:disabled { background: #d8d6cd; cursor: not-allowed; }
-  .status { margin-top: 0.6rem; font-size: 0.9rem; }
+
+  .status { margin-top: 0.6rem; font-size: 0.85rem; }
   .status.ok { color: #6b8f76; }
   .status.error { color: #b56a5c; }
-  .hidden { display: none; }
+  .hidden { display: none !important; }
+
   a.download {
-    display: inline-block;
+    display: block;
+    text-align: center;
     margin-top: 0.75rem;
     background: #8a9a8e;
     color: #ffffff;
@@ -53,43 +104,103 @@
     font-size: 0.9rem;
   }
   a.download:hover { background: #7c8d80; }
-  .checkbox-row { font-size: 0.85rem; color: #71706a; }
-  footer { font-size: 0.8rem; color: #a3a199; text-align: center; margin-top: 2rem; }
+  .checkbox-row { font-size: 0.82rem; color: #71706a; display: flex; gap: 0.4rem; align-items: flex-start; }
+
+  .preview-pane {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+  .preview-toolbar {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+  .toggle-btn {
+    background: #ffffff;
+    color: #57564f;
+    border: 1px solid #d8d6cd;
+  }
+  .toggle-btn.active {
+    background: #8a9a8e;
+    color: #fff;
+    border-color: #8a9a8e;
+  }
+  .toggle-btn:disabled { background: #f3f2ee; color: #b6b4ab; border-color: #e8e6df; }
+
+  .preview-container {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    background: #ece9e2;
+    border: 1px solid #e8e6df;
+    border-radius: 10px;
+    padding: 1.5rem;
+  }
+  .preview-placeholder {
+    color: #a3a199;
+    text-align: center;
+    margin-top: 3rem;
+    font-size: 0.95rem;
+  }
+  .docx-wrapper { background: transparent; }
+  .docx-wrapper > section.docx {
+    margin-bottom: 1.5rem !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  }
+
+  footer { font-size: 0.78rem; color: #a3a199; text-align: center; padding: 0.75rem; }
 </style>
 </head>
 <body>
-  <h1>Report Aligner</h1>
-  <p class="lede">Upload a report, get it back matching your team's template formatting. Everything runs in your browser — files are never uploaded anywhere.</p>
-
-  <div class="card">
-    <h2>1. Template</h2>
-    <label class="field">
-      Use a different template (optional — a default may already be loaded below)
-      <input type="file" id="template-input" accept=".docx">
-    </label>
-    <div id="template-status" class="status">Loading...</div>
-  </div>
-
-  <div class="card">
-    <h2>2. Fix a report</h2>
-    <label class="field">
-      Report to fix
-      <input type="file" id="report-input" accept=".docx">
-    </label>
-    <label class="checkbox-row">
-      <input type="checkbox" id="heuristic-checkbox">
-      Also try to fix headings that weren't tagged with a Word heading style (beta)
-    </label>
-    <div style="margin-top: 1rem;">
-      <button id="fix-btn" disabled>Fix Alignment</button>
+  <header>
+    <h1>AND-Bioinfo Report Aligner</h1>
+    <div class="template-row">
+      <label for="template-select">Template</label>
+      <select id="template-select"></select>
+      <input type="file" id="template-upload-input" class="hidden" accept=".docx">
     </div>
-    <div id="report-status" class="status"></div>
-    <a id="download-link" class="download hidden" href="#">Download</a>
+    <div id="template-status" class="status">Loading templates...</div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="card">
+        <h2>Report</h2>
+        <label class="field">
+          Report to fix
+          <input type="file" id="report-input" accept=".docx">
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" id="heuristic-checkbox">
+          <span>Also try to fix headings that weren't tagged with a Word heading style (beta)</span>
+        </label>
+        <div style="margin-top: 1rem;">
+          <button id="fix-btn" disabled>Fix Alignment</button>
+        </div>
+        <div id="report-status" class="status"></div>
+        <a id="download-link" class="download hidden" href="#">Download fixed report</a>
+      </div>
+    </aside>
+
+    <main class="preview-pane">
+      <div class="preview-toolbar">
+        <button id="preview-original-btn" class="toggle-btn" disabled>Original</button>
+        <button id="preview-fixed-btn" class="toggle-btn" disabled>Fixed</button>
+      </div>
+      <div id="preview-container" class="preview-container">
+        <p class="preview-placeholder">Upload a report to preview it here.</p>
+      </div>
+    </main>
   </div>
 
   <footer>Runs entirely client-side. No data leaves your device.</footer>
 
+  <div id="preview-styles" class="hidden"></div>
+
   <script src="vendor/jszip.min.js"></script>
+  <script src="vendor/docx-preview.min.js"></script>
   <script src="aligner.js"></script>
   <script src="app.js"></script>
 </body>

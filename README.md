@@ -37,22 +37,24 @@ Table *cell paragraph* formatting (font, alignment, spacing) is still fixed.
 
 ## Using it
 
-1. Open the site.
-2. Upload your team's reference `.docx` template (once — it's remembered in
-   that browser via IndexedDB for next time).
-3. Upload a report to fix, click **Fix Alignment**, download the result.
+1. Open the site. Pick a template from the dropdown (or "Upload custom
+   template..." for a one-off).
+2. Upload a report to fix — it previews immediately on the right.
+3. Click **Fix Alignment**. The preview switches to the fixed version (toggle
+   back to "Original" to compare) and a download button appears.
 
 There's an optional "heuristic headings" checkbox that tries to promote
 paragraphs that *look* like headings (short, bold, larger than body text) but
 aren't tagged with any heading style. It's best-effort and off by default.
 
-### Shipping a default template for the whole team
+Document preview (both original and fixed) is rendered client-side via
+[docx-preview](https://github.com/VolodymyrBaydalka/docxjs).
 
-By default each person uploads the template once in their own browser. If you
-want everyone to get the correct template automatically with no manual step,
-commit a **de-identified** template (placeholder patient info, not a real
-report) to `team-template/template.docx` — the app fetches it on load if
-present. Do not commit a real patient report here; this repo is public.
+### Adding templates to the dropdown
+
+See `templates/README.md` — drop a `.docx` in `templates/` and add an entry to
+`templates/index.json`. **Never commit a real patient report as a template**;
+use a de-identified file. This repo is public.
 
 ## Local development
 

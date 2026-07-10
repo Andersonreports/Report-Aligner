@@ -1,46 +1,23 @@
-const DB_NAME = 'report-aligner';
-const STORE = 'templates';
-const DEFAULT_TEMPLATE_URL = './team-template/template.docx';
+const CUSTOM_TEMPLATE_VALUE = '__custom__';
 
-function openDb() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = () => req.result.createObjectStore(STORE);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function saveTemplateToDb(name, arrayBuffer) {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).put({ name, arrayBuffer }, 'current');
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function loadTemplateFromDb() {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readonly');
-    const req = tx.objectStore(STORE).get('current');
-    req.onsuccess = () => resolve(req.result || null);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-let currentProfile = null;
-let currentTemplateName = null;
-
+const templateSelect = document.getElementById('template-select');
+const templateUploadInput = document.getElementById('template-upload-input');
 const templateStatus = document.getElementById('template-status');
-const templateInput = document.getElementById('template-input');
+
 const reportInput = document.getElementById('report-input');
 const fixBtn = document.getElementById('fix-btn');
 const heuristicCheckbox = document.getElementById('heuristic-checkbox');
 const reportStatus = document.getElementById('report-status');
 const downloadLink = document.getElementById('download-link');
+
+const previewContainer = document.getElementById('preview-container');
+const previewStyles = document.getElementById('preview-styles');
+const previewOriginalBtn = document.getElementById('preview-original-btn');
+const previewFixedBtn = document.getElementById('preview-fixed-btn');
+
+let currentProfile = null;
+let originalArrayBuffer = null;
+let fixedBlob = null;
 
 function setTemplateStatus(text, isError) {
   templateStatus.textContent = text;
@@ -52,56 +29,141 @@ function setReportStatus(text, isError) {
   reportStatus.className = isError ? 'status error' : 'status ok';
 }
 
+async function loadTemplateManifest() {
+  try {
+    const resp = await fetch('./templates/index.json');
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    return Array.isArray(data.templates) ? data.templates : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function populateTemplateSelect(templates) {
+  templateSelect.innerHTML = '';
+  if (templates.length === 0) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'No templates available';
+    opt.disabled = true;
+    opt.selected = true;
+    templateSelect.appendChild(opt);
+  }
+  for (const t of templates) {
+    const opt = document.createElement('option');
+    opt.value = t.file;
+    opt.textContent = t.name;
+    templateSelect.appendChild(opt);
+  }
+  const customOpt = document.createElement('option');
+  customOpt.value = CUSTOM_TEMPLATE_VALUE;
+  customOpt.textContent = 'Upload custom template...';
+  templateSelect.appendChild(customOpt);
+
+  if (templates.length === 0) {
+    templateSelect.value = CUSTOM_TEMPLATE_VALUE;
+  }
+}
+
 async function useTemplateBuffer(name, arrayBuffer) {
   currentProfile = await window.WordAligner.extractTemplateProfile(arrayBuffer);
-  currentTemplateName = name;
   setTemplateStatus(`Using template: ${name}`, false);
   fixBtn.disabled = !reportInput.files.length;
 }
 
-async function init() {
-  try {
-    const cached = await loadTemplateFromDb();
-    if (cached) {
-      await useTemplateBuffer(cached.name, cached.arrayBuffer);
-      return;
+async function loadSelectedTemplate() {
+  const value = templateSelect.value;
+  if (value === CUSTOM_TEMPLATE_VALUE) {
+    templateUploadInput.classList.remove('hidden');
+    if (!templateUploadInput.files.length) {
+      setTemplateStatus('Choose a .docx file to use as the template.', true);
+      currentProfile = null;
+      fixBtn.disabled = true;
     }
-  } catch (e) {
-    // IndexedDB unavailable or empty; fall through to fetching the default.
+    return;
   }
+  templateUploadInput.classList.add('hidden');
+  if (!value) return;
 
+  setTemplateStatus('Loading template...', false);
   try {
-    const resp = await fetch(DEFAULT_TEMPLATE_URL);
-    if (resp.ok) {
-      const buf = await resp.arrayBuffer();
-      await useTemplateBuffer('team-template/template.docx (bundled)', buf);
-      return;
-    }
+    const resp = await fetch('./templates/' + value);
+    if (!resp.ok) throw new Error('template file not found: ' + value);
+    const buf = await resp.arrayBuffer();
+    const name = templateSelect.options[templateSelect.selectedIndex].textContent;
+    await useTemplateBuffer(name, buf);
   } catch (e) {
-    // No bundled template shipped with this site; wait for a manual upload.
+    console.error(e);
+    setTemplateStatus('Could not load that template: ' + e.message, true);
+    currentProfile = null;
+    fixBtn.disabled = true;
   }
-
-  setTemplateStatus('No template loaded yet — upload your team\'s template below.', true);
 }
 
-templateInput.addEventListener('change', async () => {
-  const file = templateInput.files[0];
+templateSelect.addEventListener('change', loadSelectedTemplate);
+
+templateUploadInput.addEventListener('change', async () => {
+  const file = templateUploadInput.files[0];
   if (!file) return;
   setTemplateStatus('Reading template...', false);
   try {
     const buf = await file.arrayBuffer();
     await useTemplateBuffer(file.name, buf);
-    await saveTemplateToDb(file.name, buf);
   } catch (e) {
     console.error(e);
     setTemplateStatus('Could not read that template: ' + e.message, true);
   }
 });
 
-reportInput.addEventListener('change', () => {
+async function renderPreview(arrayBufferOrBlob) {
+  previewContainer.innerHTML = '';
+  try {
+    await window.docx.renderAsync(arrayBufferOrBlob, previewContainer, previewStyles, {
+      inWrapper: true,
+      ignoreLastRenderedPageBreak: true,
+    });
+  } catch (e) {
+    console.error(e);
+    previewContainer.innerHTML = '<p class="preview-placeholder">Could not preview this document.</p>';
+  }
+}
+
+function setActiveToggle(which) {
+  previewOriginalBtn.classList.toggle('active', which === 'original');
+  previewFixedBtn.classList.toggle('active', which === 'fixed');
+}
+
+previewOriginalBtn.addEventListener('click', () => {
+  if (!originalArrayBuffer) return;
+  setActiveToggle('original');
+  renderPreview(originalArrayBuffer.slice(0));
+});
+
+previewFixedBtn.addEventListener('click', async () => {
+  if (!fixedBlob) return;
+  setActiveToggle('fixed');
+  renderPreview(await fixedBlob.arrayBuffer());
+});
+
+reportInput.addEventListener('change', async () => {
   fixBtn.disabled = !(currentProfile && reportInput.files.length);
   downloadLink.classList.add('hidden');
   setReportStatus('', false);
+  fixedBlob = null;
+  previewFixedBtn.disabled = true;
+
+  const file = reportInput.files[0];
+  if (!file) {
+    previewOriginalBtn.disabled = true;
+    previewContainer.innerHTML = '<p class="preview-placeholder">Upload a report to preview it here.</p>';
+    return;
+  }
+
+  originalArrayBuffer = await file.arrayBuffer();
+  previewOriginalBtn.disabled = false;
+  setActiveToggle('original');
+  renderPreview(originalArrayBuffer.slice(0));
 });
 
 fixBtn.addEventListener('click', async () => {
@@ -113,17 +175,21 @@ fixBtn.addEventListener('click', async () => {
   setReportStatus('Fixing alignment...', false);
 
   try {
-    const buf = await file.arrayBuffer();
-    const blob = await window.WordAligner.fixReportDocx(buf, currentProfile, {
+    const buf = originalArrayBuffer || await file.arrayBuffer();
+    fixedBlob = await window.WordAligner.fixReportDocx(buf, currentProfile, {
       heuristicHeadings: heuristicCheckbox.checked,
     });
-    const url = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(fixedBlob);
     const outName = file.name.replace(/\.docx$/i, '') + '_aligned.docx';
     downloadLink.href = url;
     downloadLink.download = outName;
     downloadLink.textContent = `Download ${outName}`;
     downloadLink.classList.remove('hidden');
     setReportStatus('Done. Nothing left this browser.', false);
+
+    previewFixedBtn.disabled = false;
+    setActiveToggle('fixed');
+    await renderPreview(await fixedBlob.arrayBuffer());
   } catch (e) {
     console.error(e);
     setReportStatus('Could not fix that file: ' + e.message, true);
@@ -131,5 +197,11 @@ fixBtn.addEventListener('click', async () => {
     fixBtn.disabled = !reportInput.files.length;
   }
 });
+
+async function init() {
+  const templates = await loadTemplateManifest();
+  populateTemplateSelect(templates);
+  await loadSelectedTemplate();
+}
 
 init();
