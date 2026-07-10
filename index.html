@@ -26,17 +26,10 @@
   }
   h1 {
     font-size: 1.35rem;
-    margin: 0 0 0.7rem;
+    margin: 0;
     color: #2f2f2d;
     font-weight: 600;
   }
-  .template-row {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    flex-wrap: wrap;
-  }
-  .template-row label { font-size: 0.85rem; color: #71706a; }
   select, input[type=file] {
     font-family: inherit;
     font-size: 0.9rem;
@@ -47,9 +40,9 @@
     border: 1px solid #d8d6cd;
     background: #fff;
     color: #3a3a38;
-    min-width: 260px;
+    width: 100%;
   }
-  #template-status { font-size: 0.85rem; margin-top: 0.4rem; }
+  #template-status { font-size: 0.85rem; margin-top: 0.5rem; }
 
   .layout {
     flex: 1;
@@ -156,16 +149,18 @@
 <body>
   <header>
     <h1>AND-Bioinfo Report Aligner</h1>
-    <div class="template-row">
-      <label for="template-select">Template</label>
-      <select id="template-select"></select>
-      <input type="file" id="template-upload-input" class="hidden" accept=".docx">
-    </div>
-    <div id="template-status" class="status">Loading templates...</div>
   </header>
 
   <div class="layout">
     <aside class="sidebar">
+      <div class="card">
+        <h2>Template</h2>
+        <label class="field">
+          <select id="template-select"></select>
+        </label>
+        <div id="template-status" class="status">Loading templates...</div>
+      </div>
+
       <div class="card">
         <h2>Report</h2>
         <label class="field">

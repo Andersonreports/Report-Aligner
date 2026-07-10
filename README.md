@@ -37,8 +37,8 @@ Table *cell paragraph* formatting (font, alignment, spacing) is still fixed.
 
 ## Using it
 
-1. Open the site. Pick a template from the dropdown (or "Upload custom
-   template..." for a one-off).
+1. Open the site. Pick a template from the dropdown — templates are managed
+   in the repo (see below), not uploaded by end users.
 2. Upload a report to fix — it previews immediately on the right.
 3. Click **Fix Alignment**. The preview switches to the fixed version (toggle
    back to "Original" to compare) and a download button appears.
@@ -50,9 +50,11 @@ aren't tagged with any heading style. It's best-effort and off by default.
 Document preview (both original and fixed) is rendered client-side via
 [docx-preview](https://github.com/VolodymyrBaydalka/docxjs).
 
-### Adding templates to the dropdown
+### Managing templates
 
-See `templates/README.md` — drop a `.docx` in `templates/` and add an entry to
+There is deliberately no way to upload a template from the site itself —
+templates only change when someone commits a change to `templates/`. See
+`templates/README.md`: drop a `.docx` in `templates/` and add an entry to
 `templates/index.json`. **Never commit a real patient report as a template**;
 use a de-identified file. This repo is public.
 

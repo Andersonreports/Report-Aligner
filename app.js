@@ -1,7 +1,4 @@
-const CUSTOM_TEMPLATE_VALUE = '__custom__';
-
 const templateSelect = document.getElementById('template-select');
-const templateUploadInput = document.getElementById('template-upload-input');
 const templateStatus = document.getElementById('template-status');
 
 const reportInput = document.getElementById('report-input');
@@ -45,24 +42,19 @@ function populateTemplateSelect(templates) {
   if (templates.length === 0) {
     const opt = document.createElement('option');
     opt.value = '';
-    opt.textContent = 'No templates available';
+    opt.textContent = 'No templates available yet';
     opt.disabled = true;
     opt.selected = true;
     templateSelect.appendChild(opt);
+    templateSelect.disabled = true;
+    return;
   }
+  templateSelect.disabled = false;
   for (const t of templates) {
     const opt = document.createElement('option');
     opt.value = t.file;
     opt.textContent = t.name;
     templateSelect.appendChild(opt);
-  }
-  const customOpt = document.createElement('option');
-  customOpt.value = CUSTOM_TEMPLATE_VALUE;
-  customOpt.textContent = 'Upload custom template...';
-  templateSelect.appendChild(customOpt);
-
-  if (templates.length === 0) {
-    templateSelect.value = CUSTOM_TEMPLATE_VALUE;
   }
 }
 
@@ -74,17 +66,12 @@ async function useTemplateBuffer(name, arrayBuffer) {
 
 async function loadSelectedTemplate() {
   const value = templateSelect.value;
-  if (value === CUSTOM_TEMPLATE_VALUE) {
-    templateUploadInput.classList.remove('hidden');
-    if (!templateUploadInput.files.length) {
-      setTemplateStatus('Choose a .docx file to use as the template.', true);
-      currentProfile = null;
-      fixBtn.disabled = true;
-    }
+  if (!value) {
+    setTemplateStatus('No templates available yet. Add one to templates/index.json.', true);
+    currentProfile = null;
+    fixBtn.disabled = true;
     return;
   }
-  templateUploadInput.classList.add('hidden');
-  if (!value) return;
 
   setTemplateStatus('Loading template...', false);
   try {
@@ -102,19 +89,6 @@ async function loadSelectedTemplate() {
 }
 
 templateSelect.addEventListener('change', loadSelectedTemplate);
-
-templateUploadInput.addEventListener('change', async () => {
-  const file = templateUploadInput.files[0];
-  if (!file) return;
-  setTemplateStatus('Reading template...', false);
-  try {
-    const buf = await file.arrayBuffer();
-    await useTemplateBuffer(file.name, buf);
-  } catch (e) {
-    console.error(e);
-    setTemplateStatus('Could not read that template: ' + e.message, true);
-  }
-});
 
 async function renderPreview(arrayBufferOrBlob) {
   previewContainer.innerHTML = '';
