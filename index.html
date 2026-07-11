@@ -46,12 +46,12 @@
   header {
     background: var(--surface);
     border-bottom: 1px solid var(--line);
-    padding: 1.4rem 1.5rem 0;
+    padding: clamp(1rem, 3vw, 1.4rem) clamp(1rem, 4vw, 1.5rem) 0;
     text-align: center;
   }
   .eyebrow {
     font-family: var(--font-mono);
-    font-size: 0.7rem;
+    font-size: clamp(0.62rem, 1.6vw, 0.7rem);
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--guide-cyan);
@@ -61,7 +61,7 @@
     font-family: var(--font-display);
     font-weight: 600;
     font-style: italic;
-    font-size: 1.9rem;
+    font-size: clamp(1.35rem, 4.5vw, 1.9rem);
     letter-spacing: 0.01em;
     margin: 0 0 1rem;
     color: var(--ink);
@@ -79,11 +79,29 @@
     display: grid;
     grid-template-columns: minmax(260px, 1fr) 3fr;
     gap: 1.25rem;
-    padding: 1.5rem;
+    padding: clamp(0.85rem, 2.5vw, 1.5rem);
     min-height: 0;
+    max-width: 1800px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  @media (max-width: 1000px) {
+    .layout { grid-template-columns: minmax(220px, 1fr) 2fr; }
   }
   @media (max-width: 800px) {
-    .layout { grid-template-columns: 1fr; }
+    /* Below this width the sidebar and preview stack in one column, which is
+       routinely taller than one screen. Drop the fixed-height "app shell"
+       model (flex:1 inside a 100%-height body) and let the whole page scroll
+       normally instead of clipping/overlapping content against the footer. */
+    html, body { height: auto; }
+    body { display: block; }
+    .layout {
+      flex: none;
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 480px) {
+    .layout { gap: 0.85rem; }
   }
   .sidebar { min-width: 0; display: flex; flex-direction: column; gap: 1.25rem; }
 
@@ -91,7 +109,7 @@
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 8px;
-    padding: 1.3rem 1.4rem;
+    padding: clamp(1rem, 3vw, 1.3rem) clamp(1rem, 3vw, 1.4rem);
   }
   .card-eyebrow {
     font-family: var(--font-mono);
@@ -234,6 +252,9 @@
 
   /* ---------- Preview pane ---------- */
   .preview-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  @media (max-width: 800px) {
+    .preview-pane { min-height: 70vh; }
+  }
   .preview-toolbar { display: flex; gap: 0; margin-bottom: 0.85rem; width: fit-content; }
   .toggle-btn {
     background: var(--surface);
@@ -259,7 +280,7 @@
     background-size: 28px 28px;
     border: 1px solid var(--line);
     border-radius: 8px;
-    padding: 1.75rem;
+    padding: clamp(0.85rem, 3vw, 1.75rem);
   }
   .preview-container[contenteditable="true"] .docx-wrapper > section.docx:focus-within {
     outline: 2px solid var(--guide-cyan);
