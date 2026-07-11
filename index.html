@@ -261,6 +261,17 @@
     border-radius: 8px;
     padding: 1.75rem;
   }
+  .preview-container[contenteditable="true"] .docx-wrapper > section.docx:focus-within {
+    outline: 2px solid var(--guide-cyan);
+    outline-offset: 2px;
+  }
+  .preview-hint {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+    margin: 0 0 0.6rem;
+  }
+  .preview-hint::before { content: "✎ "; }
   .preview-placeholder {
     font-family: var(--font-mono);
     color: var(--ink-soft);
@@ -334,6 +345,7 @@
         <button id="preview-original-btn" class="toggle-btn" disabled>Original</button>
         <button id="preview-fixed-btn" class="toggle-btn" disabled>Fixed</button>
       </div>
+      <p class="preview-hint">Click into the preview to edit text directly. Edits here are for review only and are not included in the downloaded file.</p>
       <div id="preview-container" class="preview-container">
         <p class="preview-placeholder">Upload a report to preview it here.</p>
       </div>

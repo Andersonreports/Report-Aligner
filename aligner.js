@@ -596,6 +596,12 @@ async function injectTemplateHeaderIfMissing(zip, profile) {
   contentTypesXml.documentElement.appendChild(override);
 
   for (const sectPr of Array.from(documentXml.getElementsByTagName('w:sectPr'))) {
+    // Continuous section breaks don't start a new page, so they must not own a
+    // header reference of their own: a header can only render at the top of a
+    // physical page, and giving a continuous break one forces Word to promote
+    // it to a hard page break, splitting the flow at that point.
+    const typeEl = firstChildByLocalName(sectPr, 'type');
+    if (typeEl && typeEl.getAttribute('w:val') === 'continuous') continue;
     const ref = getOrCreateOrdered(documentXml, sectPr, 'headerReference', SECTPR_ORDER);
     ref.setAttribute('w:type', 'default');
     ref.setAttribute('r:id', headerDocRId);

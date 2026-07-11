@@ -109,9 +109,12 @@ async function renderPreview(arrayBufferOrBlob) {
       inWrapper: true,
       ignoreLastRenderedPageBreak: true,
     });
+    previewContainer.contentEditable = 'true';
+    previewContainer.spellcheck = false;
   } catch (e) {
     console.error(e);
     previewContainer.innerHTML = '<p class="preview-placeholder">Could not preview this document.</p>';
+    previewContainer.contentEditable = 'false';
   }
 }
 
@@ -143,6 +146,7 @@ reportInput.addEventListener('change', async () => {
   if (!file) {
     previewOriginalBtn.disabled = true;
     previewContainer.innerHTML = '<p class="preview-placeholder">Upload a report to preview it here.</p>';
+    previewContainer.contentEditable = 'false';
     dropzoneFilename.classList.add('hidden');
     return;
   }
