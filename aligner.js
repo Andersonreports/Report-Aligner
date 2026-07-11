@@ -82,8 +82,22 @@ function getOrCreateRPr(doc, rEl) {
   return rPr;
 }
 
+// Runs aren't always direct children of <w:p> - hyperlinks, tracked-change
+// insertions/deletions, content controls, and simple fields all wrap runs in
+// an intermediate element. Look through those transparent wrappers too, or
+// their contents silently keep whatever formatting they originally had.
+const RUN_WRAPPER_TAGS = new Set(['hyperlink', 'smartTag', 'ins', 'del', 'sdt', 'sdtContent', 'fldSimple']);
+
 function directRuns(pEl) {
-  return Array.from(pEl.childNodes).filter(n => n.nodeType === 1 && n.localName === 'r');
+  const out = [];
+  (function walk(node) {
+    for (const child of Array.from(node.childNodes)) {
+      if (child.nodeType !== 1) continue;
+      if (child.localName === 'r') out.push(child);
+      else if (RUN_WRAPPER_TAGS.has(child.localName)) walk(child);
+    }
+  })(pEl);
+  return out;
 }
 
 // ---------- Extract a style rule from a <w:style> element ----------
@@ -453,6 +467,76 @@ function applyPageSetup(doc, documentXmlDoc, profile) {
   }
 }
 
+function contentWidthFromProfile(profile) {
+  if (!profile.pgSz || !profile.pgSz.w || !profile.pgMar) return null;
+  const w = parseInt(profile.pgSz.w, 10);
+  const left = parseInt(profile.pgMar.left || '0', 10);
+  const right = parseInt(profile.pgMar.right || '0', 10);
+  if (!Number.isFinite(w) || !Number.isFinite(left) || !Number.isFinite(right)) return null;
+  return w - left - right;
+}
+
+function tcWBelongsToTable(tcW, tbl) {
+  let node = tcW.parentNode;
+  while (node) {
+    if (node.nodeType === 1 && node.localName === 'tbl') return node === tbl;
+    node = node.parentNode;
+  }
+  return false;
+}
+
+// Aligning page setup changes the printable content width, but tables keep
+// whatever fixed column widths they were originally authored with. If those
+// widths exceed the new content width, the table runs off the page instead
+// of shrinking to fit it. Rescale each top-level table's columns (and every
+// cell's declared width) by the same ratio so it fits, preserving column
+// proportions. Nested tables are left alone - they must fit their cell, not
+// the page.
+function fitTablesToContentWidth(documentXmlDoc, contentWidth) {
+  if (!contentWidth || contentWidth <= 0) return;
+  const TOLERANCE = 20; // twips (~0.014in) of slack before bothering to rescale
+
+  for (const tbl of Array.from(documentXmlDoc.getElementsByTagName('w:tbl'))) {
+    let ancestor = tbl.parentNode;
+    let nested = false;
+    while (ancestor) {
+      if (ancestor.nodeType === 1 && ancestor.localName === 'tbl') { nested = true; break; }
+      ancestor = ancestor.parentNode;
+    }
+    if (nested) continue;
+
+    const tblPr = firstChildByLocalName(tbl, 'tblPr');
+    const tblInd = tblPr ? firstChildByLocalName(tblPr, 'tblInd') : null;
+    const indent = tblInd ? (parseInt(tblInd.getAttribute('w:w'), 10) || 0) : 0;
+    const available = contentWidth - indent;
+    if (available <= 0) continue;
+
+    const tblGrid = firstChildByLocalName(tbl, 'tblGrid');
+    const gridCols = tblGrid ? childrenByLocalName(tblGrid, 'gridCol') : [];
+    if (!gridCols.length) continue;
+
+    const total = gridCols.reduce((sum, c) => sum + (parseInt(c.getAttribute('w:w'), 10) || 0), 0);
+    if (!total || total <= available + TOLERANCE) continue;
+
+    const ratio = available / total;
+    for (const c of gridCols) {
+      const w = parseInt(c.getAttribute('w:w'), 10) || 0;
+      c.setAttribute('w:w', String(Math.max(1, Math.round(w * ratio))));
+    }
+    for (const tcW of Array.from(tbl.getElementsByTagName('w:tcW'))) {
+      if (tcW.getAttribute('w:type') !== 'dxa' || !tcWBelongsToTable(tcW, tbl)) continue;
+      const w = parseInt(tcW.getAttribute('w:w'), 10) || 0;
+      if (!w) continue;
+      tcW.setAttribute('w:w', String(Math.max(1, Math.round(w * ratio))));
+    }
+    const tblW = tblPr ? firstChildByLocalName(tblPr, 'tblW') : null;
+    if (tblW && tblW.getAttribute('w:type') === 'dxa') {
+      const w = parseInt(tblW.getAttribute('w:w'), 10) || 0;
+      if (w) tblW.setAttribute('w:w', String(Math.max(1, Math.round(w * ratio))));
+    }
+  }
+}
+
 // ---------- Top-level entry points ----------
 
 async function loadXml(zip, path) {
@@ -627,6 +711,8 @@ async function fixReportDocx(reportArrayBuffer, profile, options) {
   let stylesXmlDirty = ensureTableStyleAvailable(stylesXml, profile);
 
   applyPageSetup(documentXml, documentXml, profile);
+  const contentWidth = contentWidthFromProfile(profile);
+  fitTablesToContentWidth(documentXml, contentWidth);
   const titleState = { seenFirstParagraph: false };
   applyProfileToPart(documentXml, documentXml, profile, styleIdMap, bodySize, options, titleState);
   zip.file('word/document.xml', new XMLSerializer().serializeToString(documentXml));
@@ -638,6 +724,7 @@ async function fixReportDocx(reportArrayBuffer, profile, options) {
   for (const name of partNames) {
     const partXml = await loadXml(zip, name);
     if (!partXml) continue;
+    fitTablesToContentWidth(partXml, contentWidth);
     applyProfileToPart(partXml, partXml, profile, styleIdMap, bodySize, options, null);
     zip.file(name, new XMLSerializer().serializeToString(partXml));
   }
