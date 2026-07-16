@@ -192,42 +192,72 @@
 
   // ---------- 3. Reconstruct tables from ruling lines ----------
   //
-  // Group horizontal ruling lines into vertically-contiguous regions (a run of
-  // rows with no big vertical break between them). Each region whose lines form
-  // at least a 1x2 / 2x1 grid becomes a table; its row edges come from the
-  // horizontal lines and its column edges from the vertical lines crossing that
-  // band. Text is then dropped into whichever grid cell contains it.
+  // A table's row height varies per table (and can be much larger than the
+  // thin gap between two unrelated ruling lines), so there is no single "gap
+  // size" threshold that safely tells rows-of-one-table apart from
+  // start-of-another-table. What's actually true regardless of row height:
+  // every ruling line belonging to the SAME table touches or overlaps another
+  // ruling line of that same table (shared corners, a column divider crossing
+  // a row divider, etc.), while lines from two visually separate tables never
+  // touch. So tables are found as connected components of the ruling-line
+  // "touch" graph, not by any fixed distance threshold.
 
-  const REGION_GAP = 20; // pt: vertical break that separates two tables
-  const EDGE_TOL = 3;    // pt: tolerance when clustering ruling-line positions
+  const EDGE_TOL = 3; // pt: tolerance for "do these lines touch"
+
+  function unionFind(n) {
+    const parent = Array.from({ length: n }, (_, i) => i);
+    function find(x) { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; }
+    function union(a, b) { const ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb; }
+    return { find, union };
+  }
+
+  function rangesTouch(a0, a1, b0, b1, tol) {
+    return a0 <= b1 + tol && b0 <= a1 + tol;
+  }
 
   function detectTables(page) {
     const { vLines, hLines } = page.rulings;
     if (!hLines.length || !vLines.length) return [];
 
-    const ys = clusterVals(hLines.map(l => l.y), EDGE_TOL).sort((a, b) => b - a); // top->bottom
-    // Split the clustered horizontal edges into regions by large vertical gaps.
-    const regions = [];
-    let group = [];
-    for (const y of ys) {
-      if (group.length && group[group.length - 1] - y > REGION_GAP) {
-        regions.push(group); group = [];
+    // segs[i]: { type: 'v'|'h', ... } — indices are shared with the union-find.
+    const segs = [
+      ...vLines.map(l => ({ type: 'v', x: l.x, y0: Math.min(l.y0, l.y1), y1: Math.max(l.y0, l.y1) })),
+      ...hLines.map(l => ({ type: 'h', y: l.y, x0: Math.min(l.x0, l.x1), x1: Math.max(l.x0, l.x1) })),
+    ];
+    const uf = unionFind(segs.length);
+    for (let i = 0; i < segs.length; i++) {
+      for (let j = i + 1; j < segs.length; j++) {
+        const a = segs[i], b = segs[j];
+        let touch;
+        if (a.type === 'v' && b.type === 'v') {
+          touch = Math.abs(a.x - b.x) <= EDGE_TOL && rangesTouch(a.y0, a.y1, b.y0, b.y1, EDGE_TOL);
+        } else if (a.type === 'h' && b.type === 'h') {
+          touch = Math.abs(a.y - b.y) <= EDGE_TOL && rangesTouch(a.x0, a.x1, b.x0, b.x1, EDGE_TOL);
+        } else {
+          const v = a.type === 'v' ? a : b, h = a.type === 'v' ? b : a;
+          touch = v.x >= h.x0 - EDGE_TOL && v.x <= h.x1 + EDGE_TOL && h.y >= v.y0 - EDGE_TOL && h.y <= v.y1 + EDGE_TOL;
+        }
+        if (touch) uf.union(i, j);
       }
-      group.push(y);
     }
-    if (group.length) regions.push(group);
+
+    const groups = {};
+    for (let i = 0; i < segs.length; i++) {
+      const root = uf.find(i);
+      (groups[root] = groups[root] || []).push(segs[i]);
+    }
 
     const tables = [];
-    for (const rowEdges of regions) {
-      if (rowEdges.length < 2) continue; // need >= 1 row
-      const yTop = rowEdges[0], yBot = rowEdges[rowEdges.length - 1];
-      // Vertical lines that span (most of) this band define the columns.
-      const spanning = vLines.filter(l => l.y1 >= yBot - EDGE_TOL && l.y0 <= yTop + EDGE_TOL);
-      const colEdges = clusterVals(spanning.map(l => l.x), EDGE_TOL).sort((a, b) => a - b);
-      if (colEdges.length < 2) continue; // need >= 1 column
+    for (const groupSegs of Object.values(groups)) {
+      const hSegs = groupSegs.filter(s => s.type === 'h');
+      const vSegs = groupSegs.filter(s => s.type === 'v');
+      if (!hSegs.length || !vSegs.length) continue;
+      const rowEdges = clusterVals(hSegs.map(s => s.y), EDGE_TOL).sort((a, b) => b - a);
+      const colEdges = clusterVals(vSegs.map(s => s.x), EDGE_TOL).sort((a, b) => a - b);
+      if (rowEdges.length < 2 || colEdges.length < 2) continue;
       const nRows = rowEdges.length - 1, nCols = colEdges.length - 1;
-      if (nRows * nCols < 2) continue;
-      tables.push({ yTop, yBot, rowEdges, colEdges, nRows, nCols });
+      if (nRows * nCols < 2) continue; // a single bordered box, not a table
+      tables.push({ yTop: rowEdges[0], yBot: rowEdges[rowEdges.length - 1], rowEdges, colEdges, nRows, nCols });
     }
     return tables;
   }
