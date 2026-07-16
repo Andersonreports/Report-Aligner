@@ -26,6 +26,10 @@ const SECTPR_ORDER = ['headerReference','footerReference','footnotePr','endnoteP
   'pgMar','paperSrc','pgBorders','lnNumType','pgNumType','cols','formProt','vAlign','noEndnote',
   'titlePg','textDirection','bidi','rtlGutter','docGrid','printerSettings','sectPrChange'];
 
+const TBLPR_ORDER = ['tblStyle','tblpPr','tblOverlap','bidiVisual','tblStyleRowBandSize',
+  'tblStyleColBandSize','tblW','jc','tblCellSpacing','tblInd','tblBorders','shd','tblLayout',
+  'tblCellMar','tblLook','tblCaption','tblDescription','tblPrChange'];
+
 function canon(s) {
   return (s || '').toLowerCase().replace(/[\s_-]/g, '');
 }
@@ -151,8 +155,15 @@ function extractRuleFromPPrRPr(pPr, rPr) {
   return rule;
 }
 
-function applyRuleToParagraph(doc, pEl, rule) {
+function applyRuleToParagraph(doc, pEl, rule, szOverride) {
   const pPr = getOrCreatePPr(doc, pEl);
+  // The template's named-style sizes are often misleading (e.g. a "Body Text"
+  // style declared at 8pt whose paragraphs are all overridden to 10pt at the
+  // run level). szOverride carries the size the template *actually* renders
+  // this kind of paragraph at (see learnTemplateSizes); prefer it over the
+  // style's nominal sz so the output matches how the template really looks.
+  const sz = szOverride || rule.sz;
+  const szCs = szOverride || rule.szCs;
 
   if (rule.jc) {
     getOrCreateOrdered(doc, pPr, 'jc', PPR_ORDER).setAttribute('w:val', rule.jc);
@@ -179,8 +190,8 @@ function applyRuleToParagraph(doc, pEl, rule) {
       if (rule.fontEastAsia) rFonts.setAttribute('w:eastAsia', rule.fontEastAsia);
       if (rule.fontCs) rFonts.setAttribute('w:cs', rule.fontCs);
     }
-    if (rule.sz) getOrCreateOrdered(doc, rPr, 'sz', RPR_ORDER).setAttribute('w:val', rule.sz);
-    if (rule.szCs) getOrCreateOrdered(doc, rPr, 'szCs', RPR_ORDER).setAttribute('w:val', rule.szCs);
+    if (sz) getOrCreateOrdered(doc, rPr, 'sz', RPR_ORDER).setAttribute('w:val', sz);
+    if (szCs) getOrCreateOrdered(doc, rPr, 'szCs', RPR_ORDER).setAttribute('w:val', szCs);
     if (rule.bold === true) getOrCreateOrdered(doc, rPr, 'b', RPR_ORDER).removeAttribute('w:val');
     if (rule.bold === false) getOrCreateOrdered(doc, rPr, 'b', RPR_ORDER).setAttribute('w:val', '0');
     if (rule.italic === true) getOrCreateOrdered(doc, rPr, 'i', RPR_ORDER).removeAttribute('w:val');
@@ -236,6 +247,8 @@ function buildTemplateProfile(stylesXmlDoc, documentXmlDoc) {
     if (!style.name) continue;
     profile.rulesByCanonName[canon(style.name)] = resolveEffectiveRule(id, styleById, rootRule, cache);
   }
+
+  profile.sizeByBucket = learnTemplateSizes(documentXmlDoc, styleIdToCanonName(stylesXmlDoc));
 
   const tableStyleEls = Array.from(stylesXmlDoc.getElementsByTagName('w:style'))
     .filter(s => s.getAttribute('w:type') === 'table');
@@ -374,7 +387,68 @@ function paragraphLooksLikeUntaggedHeading(pEl, bodySize) {
 
 // ---------- Apply profile to a document/header/footer XML part ----------
 
+// Decide which logical bucket a paragraph belongs to. Returns { bucket, cName }
+// where `bucket` is 'title', 'heading2', or the paragraph's own canon style
+// name. Kept identical between the template-learning pass and the apply pass so
+// that the size we learn for a bucket is applied to exactly the same paragraphs.
+function classifyBucket(pEl, styleIdMap, bodySize, options, titleState) {
+  const text = Array.from(pEl.getElementsByTagName('w:t')).map(t => t.textContent).join('');
+  const pPr = firstChildByLocalName(pEl, 'pPr');
+  const pStyleEl = pPr ? firstChildByLocalName(pPr, 'pStyle') : null;
+  const styleId = pStyleEl ? pStyleEl.getAttribute('w:val') : null;
+  const cName = styleId ? (styleIdMap[styleId] || canon(styleId)) : 'normal';
+
+  if (matchesDictionary(text, TITLE_TEXTS)) return { bucket: 'title', cName };
+  if (titleState && !titleState.seenFirstParagraph && text.trim()) {
+    titleState.seenFirstParagraph = true;
+    return { bucket: 'title', cName };
+  }
+  if (matchesDictionary(text, HEADING2_TEXTS)) return { bucket: 'heading2', cName };
+  if (options && options.heuristicHeadings && (cName === 'normal' || cName === 'bodytext') &&
+      paragraphLooksLikeUntaggedHeading(pEl, bodySize)) {
+    return { bucket: 'heading2', cName };
+  }
+  return { bucket: cName, cName };
+}
+
+// Learn the font size the template *actually* uses for each bucket, by reading
+// the run-level sizes off the template's own paragraphs. Named-style sizes in
+// these templates are frequently overridden at the run level (a style declared
+// at 8pt whose paragraphs all render at 10pt), so trusting the style definition
+// alone produces the wrong — usually far too small — output size. Buckets with
+// no explicit run sizes in the template are simply omitted, in which case the
+// style's declared size is used as before.
+function learnTemplateSizes(documentXmlDoc, styleIdMap) {
+  const byBucket = {}; // bucket -> { szVal: count }
+  const titleState = { seenFirstParagraph: false };
+  for (const p of Array.from(documentXmlDoc.getElementsByTagName('w:p'))) {
+    if (paragraphIsImageOnly(p)) continue;
+    const text = Array.from(p.getElementsByTagName('w:t')).map(t => t.textContent).join('');
+    const { bucket } = classifyBucket(p, styleIdMap, 22, { heuristicHeadings: false }, titleState);
+    if (!text.trim()) continue;
+    for (const r of directRuns(p)) {
+      const rPr = firstChildByLocalName(r, 'rPr');
+      const sz = rPr ? firstChildByLocalName(rPr, 'sz') : null;
+      if (!sz) continue;
+      const v = sz.getAttribute('w:val');
+      if (!v) continue;
+      byBucket[bucket] = byBucket[bucket] || {};
+      byBucket[bucket][v] = (byBucket[bucket][v] || 0) + 1;
+    }
+  }
+  const out = {};
+  for (const [bucket, counts] of Object.entries(byBucket)) {
+    let best = null, bestCount = -1;
+    for (const [v, c] of Object.entries(counts)) {
+      if (c > bestCount) { best = v; bestCount = c; }
+    }
+    if (best) out[bucket] = best;
+  }
+  return out;
+}
+
 function applyProfileToPart(doc, documentXmlDoc, profile, styleIdMap, bodySize, options, titleState) {
+  const sizeByBucket = profile.sizeByBucket || {};
   for (const p of Array.from(documentXmlDoc.getElementsByTagName('w:p'))) {
     if (paragraphIsImageOnly(p)) {
       const pPr = getOrCreatePPr(doc, p);
@@ -382,33 +456,21 @@ function applyProfileToPart(doc, documentXmlDoc, profile, styleIdMap, bodySize, 
       continue;
     }
 
-    const text = Array.from(p.getElementsByTagName('w:t')).map(t => t.textContent).join('');
-
-    const pPr = firstChildByLocalName(p, 'pPr');
-    const pStyleEl = pPr ? firstChildByLocalName(pPr, 'pStyle') : null;
-    const styleId = pStyleEl ? pStyleEl.getAttribute('w:val') : null;
-    const cName = styleId ? (styleIdMap[styleId] || canon(styleId)) : 'normal';
+    const { bucket, cName } = classifyBucket(p, styleIdMap, bodySize, options, titleState);
 
     let rule = null;
-
-    if (matchesDictionary(text, TITLE_TEXTS)) {
+    if (bucket === 'title') {
       rule = profile.rulesByCanonName['title'];
-    } else if (titleState && !titleState.seenFirstParagraph && text.trim()) {
-      titleState.seenFirstParagraph = true;
-      rule = profile.rulesByCanonName['title'];
-    } else if (matchesDictionary(text, HEADING2_TEXTS)) {
-      rule = profile.rulesByCanonName['heading2'];
+    } else if (bucket === 'heading2') {
+      rule = profile.rulesByCanonName['heading2'] || profile.rulesByCanonName['heading1'];
     }
-
-    if (!rule && options.heuristicHeadings && (cName === 'normal' || cName === 'bodytext')) {
-      if (paragraphLooksLikeUntaggedHeading(p, bodySize)) {
-        rule = profile.rulesByCanonName['heading2'] || profile.rulesByCanonName['heading1'];
-      }
-    }
-
     if (!rule) rule = profile.rulesByCanonName[cName];
 
-    if (rule) applyRuleToParagraph(doc, p, rule);
+    // Prefer the template's learned size for this bucket over the style's
+    // nominal (often misleading) size.
+    const szOverride = sizeByBucket[bucket] || sizeByBucket[cName] || null;
+
+    if (rule) applyRuleToParagraph(doc, p, rule, szOverride);
   }
 
   if (options.normalizeTableStyle && profile.tableStyleId) {
@@ -492,6 +554,14 @@ function tcWBelongsToTable(tcW, tbl) {
 // cell's declared width) by the same ratio so it fits, preserving column
 // proportions. Nested tables are left alone - they must fit their cell, not
 // the page.
+//
+// Separately, every top-level table is pinned to a fixed layout with an
+// explicit total width (w:tblW type="dxa"). Many report tables ship as
+// type="auto", which lets Word/renderers auto-fit columns to their contents -
+// a single long unbreakable token (e.g. a genomic coordinate or a read-depth
+// string) then blows a column out past the right margin. Fixed layout + an
+// explicit width keeps columns at their declared grid widths and wraps long
+// content instead, matching how the table is meant to sit on the page.
 function fitTablesToContentWidth(documentXmlDoc, contentWidth) {
   if (!contentWidth || contentWidth <= 0) return;
   const TOLERANCE = 20; // twips (~0.014in) of slack before bothering to rescale
@@ -505,7 +575,7 @@ function fitTablesToContentWidth(documentXmlDoc, contentWidth) {
     }
     if (nested) continue;
 
-    const tblPr = firstChildByLocalName(tbl, 'tblPr');
+    let tblPr = firstChildByLocalName(tbl, 'tblPr');
     const tblInd = tblPr ? firstChildByLocalName(tblPr, 'tblInd') : null;
     const indent = tblInd ? (parseInt(tblInd.getAttribute('w:w'), 10) || 0) : 0;
     const available = contentWidth - indent;
@@ -516,24 +586,33 @@ function fitTablesToContentWidth(documentXmlDoc, contentWidth) {
     if (!gridCols.length) continue;
 
     const total = gridCols.reduce((sum, c) => sum + (parseInt(c.getAttribute('w:w'), 10) || 0), 0);
-    if (!total || total <= available + TOLERANCE) continue;
 
-    const ratio = available / total;
-    for (const c of gridCols) {
-      const w = parseInt(c.getAttribute('w:w'), 10) || 0;
-      c.setAttribute('w:w', String(Math.max(1, Math.round(w * ratio))));
+    if (total && total > available + TOLERANCE) {
+      const ratio = available / total;
+      for (const c of gridCols) {
+        const w = parseInt(c.getAttribute('w:w'), 10) || 0;
+        c.setAttribute('w:w', String(Math.max(1, Math.round(w * ratio))));
+      }
+      for (const tcW of Array.from(tbl.getElementsByTagName('w:tcW'))) {
+        if (tcW.getAttribute('w:type') !== 'dxa' || !tcWBelongsToTable(tcW, tbl)) continue;
+        const w = parseInt(tcW.getAttribute('w:w'), 10) || 0;
+        if (!w) continue;
+        tcW.setAttribute('w:w', String(Math.max(1, Math.round(w * ratio))));
+      }
     }
-    for (const tcW of Array.from(tbl.getElementsByTagName('w:tcW'))) {
-      if (tcW.getAttribute('w:type') !== 'dxa' || !tcWBelongsToTable(tcW, tbl)) continue;
-      const w = parseInt(tcW.getAttribute('w:w'), 10) || 0;
-      if (!w) continue;
-      tcW.setAttribute('w:w', String(Math.max(1, Math.round(w * ratio))));
+
+    // Pin the table to a fixed layout at its (possibly rescaled) grid width so
+    // long content can't auto-expand a column past the page.
+    const finalTotal = gridCols.reduce((sum, c) => sum + (parseInt(c.getAttribute('w:w'), 10) || 0), 0);
+    if (!finalTotal) continue;
+    if (!tblPr) {
+      tblPr = documentXmlDoc.createElementNS(W_NS, 'w:tblPr');
+      tbl.insertBefore(tblPr, tbl.firstChild);
     }
-    const tblW = tblPr ? firstChildByLocalName(tblPr, 'tblW') : null;
-    if (tblW && tblW.getAttribute('w:type') === 'dxa') {
-      const w = parseInt(tblW.getAttribute('w:w'), 10) || 0;
-      if (w) tblW.setAttribute('w:w', String(Math.max(1, Math.round(w * ratio))));
-    }
+    const tblW = getOrCreateOrdered(documentXmlDoc, tblPr, 'tblW', TBLPR_ORDER);
+    tblW.setAttribute('w:type', 'dxa');
+    tblW.setAttribute('w:w', String(finalTotal));
+    getOrCreateOrdered(documentXmlDoc, tblPr, 'tblLayout', TBLPR_ORDER).setAttribute('w:type', 'fixed');
   }
 }
 

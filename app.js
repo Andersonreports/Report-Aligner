@@ -154,7 +154,27 @@ reportInput.addEventListener('change', async () => {
   dropzoneFilename.textContent = file.name;
   dropzoneFilename.classList.remove('hidden');
 
-  originalArrayBuffer = await file.arrayBuffer();
+  const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
+  try {
+    if (isPdf) {
+      setReportStatus('Converting PDF to Word...', false);
+      const pdfBuf = await file.arrayBuffer();
+      const docxBlob = await window.PdfToDocx.convertPdfToDocx(pdfBuf);
+      originalArrayBuffer = await docxBlob.arrayBuffer();
+      setReportStatus('Converted from PDF. Review the extraction, then Fix Alignment.', false);
+    } else {
+      originalArrayBuffer = await file.arrayBuffer();
+    }
+  } catch (e) {
+    console.error(e);
+    setReportStatus('Could not read that file: ' + e.message, true);
+    previewOriginalBtn.disabled = true;
+    fixBtn.disabled = true;
+    previewContainer.innerHTML = '<p class="preview-placeholder">Could not process this file.</p>';
+    previewContainer.contentEditable = 'false';
+    return;
+  }
+
   previewOriginalBtn.disabled = false;
   setActiveToggle('original');
   renderPreview(originalArrayBuffer.slice(0));
@@ -195,7 +215,7 @@ fixBtn.addEventListener('click', async () => {
       heuristicHeadings: heuristicCheckbox.checked,
     });
     const url = URL.createObjectURL(fixedBlob);
-    const outName = file.name.replace(/\.docx$/i, '') + '_aligned.docx';
+    const outName = file.name.replace(/\.(docx|pdf)$/i, '') + '_aligned.docx';
     downloadLink.href = url;
     downloadLink.download = outName;
     downloadLink.textContent = `Download ${outName}`;

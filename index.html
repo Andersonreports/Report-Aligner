@@ -305,6 +305,12 @@
     margin-bottom: 1.5rem !important;
     box-shadow: 0 2px 10px rgba(0,0,0,0.15);
   }
+  /* Keep the preview faithful to how Word lays tables out: honour the fixed
+     column widths and wrap long unbreakable tokens (genomic coordinates,
+     read-depth strings) inside the cell instead of letting them push the
+     table off the right edge of the page. */
+  .preview-container table { table-layout: fixed; }
+  .preview-container td, .preview-container th { overflow-wrap: anywhere; word-break: break-word; }
 
   footer {
     font-family: var(--font-mono);
@@ -344,10 +350,10 @@
         <p class="card-eyebrow"><span class="step-num">Step 2</span> &middot; Report</p>
         <h2>Upload a report to fix</h2>
         <div id="dropzone" class="dropzone">
-          <input type="file" id="report-input" class="dropzone-input" accept=".docx">
+          <input type="file" id="report-input" class="dropzone-input" accept=".docx,.pdf">
           <div class="dropzone-content">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-            <p class="dropzone-text">Drag &amp; drop your report here<br>or <span class="dropzone-browse">browse files</span></p>
+            <p class="dropzone-text">Drag &amp; drop your report here (.docx or .pdf)<br>or <span class="dropzone-browse">browse files</span></p>
             <p id="dropzone-filename" class="dropzone-filename hidden"></p>
           </div>
         </div>
@@ -379,6 +385,15 @@
 
   <script src="vendor/jszip.min.js"></script>
   <script src="vendor/docx-preview.min.js"></script>
+  <script src="vendor/pdf.min.js"></script>
+  <script>
+    // pdf.js runs its parser in a Web Worker; point it at the vendored worker
+    // so everything stays local (no CDN, no data leaving the device).
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
+    }
+  </script>
+  <script src="pdf2docx.js"></script>
   <script src="aligner.js"></script>
   <script src="app.js"></script>
 </body>
